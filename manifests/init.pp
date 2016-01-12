@@ -9,8 +9,6 @@ class activemq (
 ) inherits activemq::params {
   
   class { 'activemq::package':
-    version => $version,
-    package => $package,
     notify  => Class['activemq::service']
   }
 

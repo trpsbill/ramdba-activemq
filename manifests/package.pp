@@ -1,10 +1,11 @@
 class activemq::package {
-  file { '/tmp/activemq-1-1.el6.x86_64.rpm':
-    source => 'puppet:///modules/activemq/activemq-1-1.el6.x86_64.rpm',
+  file { '/tmp/activemq-5.10.0-2.el6.noarch.rpm':
+    source => 'puppet:///modules/activemq/activemq-5.10.0-2.el6.noarch.rpm',
   }
 
   package { 'activemq':
-    source  => '/tmp/activemq-1-1.el6.x86_64.rpm',
-    require => File['/tmp/activemq-1-1.el6.x86_64.rpm'],
+    provider => rpm,
+    source   => '/tmp/activemq-5.10.0-2.el6.noarch.rpm',
+    require  => File['/tmp/activemq-5.10.0-2.el6.noarch.rpm'],
   }
 }

@@ -1,0 +1,229 @@
+<!--
+         Licensed to the Apache Software Foundation (ASF) under one or more
+    contributor license agreements.  See the NOTICE file distributed with
+    this work for additional information regarding copyright ownership.
+    The ASF licenses this file to You under the Apache License, Version 2.0
+    (the "License"); you may not use this file except in compliance with
+    the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+-->
+<!-- START SNIPPET: example -->
+<beans
+  xmlns="http://www.springframework.org/schema/beans"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+  http://activemq.apache.org/schema/core http://activemq.apache.org/schema/core/activemq-core.xsd">
+
+    <!-- Allows us to use system properties as variables in this configuration file -->
+    <bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+        <property name="locations">
+            <value>file:${activemq.conf}/credentials.properties</value>
+        </property>
+    </bean>
+
+    <!-- Allows log searching in hawtio console -->
+    <!--bean id="logQuery" class="org.fusesource.insight.log.log4j.Log4jLogQuery"
+                   lazy-init="false" scope="singleton"
+          init-method="start" destroy-method="stop">
+    </bean-->
+
+        <bean id="ioExceptionHandler" class="org.apache.activemq.util.DefaultIOExceptionHandler">
+             <property name="ignoreAllErrors">
+                        <value>true</value>
+                 </property>
+        </bean>
+
+    <bean id="postgres-ds" class="com.mchange.v2.c3p0.ComboPooledDataSource" destroy-method="close">
+            <property name="driverClass" value="org.postgresql.Driver"/>
+            <property name="jdbcUrl" value="<%= @jdbcurl %>"/>
+            <property name="user" value="<%= @postgres_user %>"/>
+            <property name="password" value="<% @postgres_password %>"/>
+            <property name="dataSourceName" value="postgres"/>
+            <property name="maxPoolSize" value="400"/>
+            <property name="minPoolSize" value="5"/>
+            <property name="initialPoolSize" value="10"/>
+            <property name="acquireIncrement" value="5"/>
+            <property name="maxIdleTime" value="600"/>
+            <property name="maxConnectionAge" value="0"/>
+            <property name="maxIdleTimeExcessConnections" value="0"/>
+            <property name="maxStatements" value="0"/>
+    	    <property name="maxStatementsPerConnection" value="0"/>
+            <property name="statementCacheNumDeferredCloseThreads" value="0"/>
+            <property name="acquireRetryAttempts" value="3"/>
+            <property name="acquireRetryDelay" value="500"/>
+            <property name="breakAfterAcquireFailure" value="false"/>
+            <property name="autoCommitOnClose" value="false"/>
+            <property name="unreturnedConnectionTimeout" value="0"/>
+            <property name="checkoutTimeout" value="0"/>
+            <property name="numHelperThreads" value="5"/>
+    </bean>
+
+    <!--
+                 The <broker> element is used to configure the ActiveMQ broker.
+    -->
+    <broker xmlns="http://activemq.apache.org/schema/core"
+            brokerName="<%= @mq_broker_name %>"
+            dataDirectory="${activemq.data}"
+            persistent="true"
+            start="false"
+            advisorySupport="false"
+            useJmx="true"
+            >
+
+        <destinationPolicy>
+            <policyMap>
+              <policyEntries>
+                <policyEntry queue=">"
+                             enableAudit="true"
+                             useCache="false"
+                             usePrefetchExtension="false"
+                             optimizedDispatch="true"
+                             producerFlowControl="false"
+                             memoryLimit="8mb"
+                             queuePrefetch="10"
+                             lazyDispatch="false"
+                             maxPageSize="200"
+                             reduceMemoryFootprint="true"
+                             cursorMemoryHighWaterMark="70" >
+
+                             <deadLetterStrategy>
+	                             <individualDeadLetterStrategy queuePrefix="DLQ."/>
+                             </deadLetterStrategy>
+
+                            </policyEntry>
+
+                <policyEntry topic=">"
+                             optimizedDispatch="true"
+                             producerFlowControl="false"
+                             memoryLimit="1mb">
+                             <dispatchPolicy>
+                             <strictOrderDispatchPolicy />
+                             </dispatchPolicy>
+                             <subscriptionRecoveryPolicy>
+                             <lastImageSubscriptionRecoveryPolicy />
+                             </subscriptionRecoveryPolicy>
+                </policyEntry>
+              </policyEntries>
+            </policyMap>
+        </destinationPolicy>
+
+<!-- AMQ Replicator -->
+	<destinationInterceptors>
+	    <virtualDestinationInterceptor>
+	        <virtualDestinations>
+		    <compositeQueue name="Prod_L2_Event_MG_Alpha_L2_Event_HOS_Queue" forwardOnly="false">
+			<forwardTo>
+			    <queue physicalName="Prod_L2_Event_MG_Alpha_L2_Event_HOS_Queue_duplicate" />
+			</forwardTo>
+		    </compositeQueue>
+		    <compositeQueue name="Prod_L2_Event_MG_Alpha_L2_Event_DVIR_Queue" forwardOnly="false">
+			<forwardTo>
+		 	    <queue physicalName="Prod_L2_Event_MG_Alpha_L2_Event_DVIR_Queue_duplicate" />
+			</forwardTo>
+		    </compositeQueue>
+		    <compositeQueue name="Prod_L2_Event_MG_Alpha_L2_Event_Engine_Queue" forwardOnly="false">
+			<forwardTo>
+			    <queue physicalName="Prod_L2_Event_MG_Alpha_L2_Event_Engine_Queue_duplicate" />
+			</forwardTo>
+		    </compositeQueue>
+		</virtualDestinations>
+	    </virtualDestinationInterceptor>
+	</destinationInterceptors>
+
+
+        <!--
+                         The managementContext is used to configure how ActiveMQ is exposed in
+            JMX. By default, ActiveMQ uses the MBean server that is started by
+            the JVM. For more information, see:
+
+            http://activemq.apache.org/jmx.html
+        -->
+        <managementContext>
+            <managementContext connectorPort="11099" rmiServerPort="11119" jmxDomainName="org.apache.activemq" createConnector="true"/>
+        </managementContext>
+
+        <!--
+                         Configure message persistence for the broker. The default persistence
+            mechanism is the KahaDB store (identified by the kahaDB tag).
+            For more information, see:
+
+            http://activemq.apache.org/persistence.html
+        -->
+
+        <persistenceAdapter>
+                     <!--
+                                                   <kahaDB
+                            directory="${activemq.data}/kahaDB"
+                                indexWriteBatchSize="2000"
+                                indexCacheSize="20000" />
+                         -->
+
+                         <jdbcPersistenceAdapter
+                             dataDirectory="${activemq.data}"
+                             dataSource="#postgres-ds"
+                             cleanupPeriod="300000"
+                             createTablesOnStartup="true"
+                             useLock="true"
+                             lockKeepAlivePeriod="5000">
+                             <locker>
+                             	<lease-database-locker lockAcquireSleepInterval="30000"/>
+                             </locker>
+                         </jdbcPersistenceAdapter>
+
+        </persistenceAdapter>
+
+          <!--
+                           The systemUsage controls the maximum amount of space the broker will
+            use before disabling caching and/or slowing down producers. For more information, see:
+            http://activemq.apache.org/producer-flow-control.html
+          -->
+          <systemUsage>
+            <systemUsage sendFailIfNoSpaceAfterTimeout="3000">
+                <memoryUsage>
+                    <memoryUsage limit="3 gb"/>
+                </memoryUsage>
+                <storeUsage>
+                    <storeUsage limit="16 gb"/>
+                </storeUsage>
+                <tempUsage>
+                    <tempUsage limit="2 gb"/>
+                </tempUsage>
+            </systemUsage>
+        </systemUsage>
+
+        <!--
+                         The transport connectors expose ActiveMQ over a given protocol to
+            clients and other brokers. For more information, see:
+
+            http://activemq.apache.org/configuring-transports.html
+        -->
+        <transportConnectors>
+            <!-- DOS protection, limit concurrent connections to 1000 and frame size to 100MB -->
+            <transportConnector name="openwire+nio" uri="nio://0.0.0.0:61616?wireFormat.maxInactivityDuration=0&amp;wireFormat.tightEncodingEnabled=false&amp;wireFormat.maxFrameSize=104857600&amp;wireFormat.cacheSize=2048&amp;socketBufferSize=13107&amp;ioBufferSize=16384"/>
+        </transportConnectors>
+
+        <!-- destroy the spring context on shutdown to stop jetty -->
+        <shutdownHooks>
+            <bean xmlns="http://www.springframework.org/schema/beans" class="org.apache.activemq.hooks.SpringContextHook" />
+        </shutdownHooks>
+
+    </broker>
+
+    <!--
+                 Enable web consoles, REST and Ajax APIs and demos
+        The web consoles requires by default login, you can disable this in the jetty.xml file
+
+        Take a look at ${ACTIVEMQ_HOME}/conf/jetty.xml for more details
+    -->
+    <import resource="jetty.xml"/>
+
+</beans>
+<!-- END SNIPPET: example -->
+

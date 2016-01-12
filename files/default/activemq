@@ -1,0 +1,79 @@
+ACTIVEMQ_HOME=/opt/activemq
+if [ -z "$ACTIVEMQ_HOME" ] ; then
+if [ -d /opt/activemq ] ; then
+ACTIVEMQ_HOME=/opt/activemq
+fi
+if [ -d "${HOME}/opt/activemq" ] ; then
+ACTIVEMQ_HOME="${HOME}/opt/activemq"
+fi
+PRG="$0"
+progname=`basename "$0"`
+saveddir=`pwd`
+dirname_prg=`dirname "$PRG"`
+cd "$dirname_prg"
+while [ -h "$PRG" ] ; do
+ls=`ls -ld "$PRG"`
+link=`expr "$ls" : '.*-> (.*)$'`
+if expr "$link" : '.*/.*' > /dev/null; then
+PRG="$link"
+else
+PRG=`dirname "$PRG"`"/$link"
+fi
+done
+ACTIVEMQ_HOME=`dirname "$PRG"`/..
+cd "$saveddir"
+ACTIVEMQ_HOME=`cd "$ACTIVEMQ_HOME" && pwd`
+fi
+if [ -z "$ACTIVEMQ_BASE" ] ; then
+ACTIVEMQ_BASE="$ACTIVEMQ_HOME"
+fi
+if [ -z "$ACTIVEMQ_CONF" ] ; then
+if [ -z "$ACTIVEMQ_CONFIG_DIR" ] ; then
+ACTIVEMQ_CONF="$ACTIVEMQ_BASE/conf"
+else
+ACTIVEMQ_CONF="$ACTIVEMQ_CONFIG_DIR"
+fi
+fi
+if [ -z "$ACTIVEMQ_USER" ] ; then
+ACTIVEMQ_USER="activemq"
+fi
+if [ -z "$ACTIVEMQ_DATA" ] ; then
+if [ -z "$ACTIVEMQ_DATA_DIR" ] ; then
+ACTIVEMQ_DATA="$ACTIVEMQ_BASE/data"
+else
+ACTIVEMQ_DATA="$ACTIVEMQ_DATA_DIR"
+fi
+fi
+if [ -z "$ACTIVEMQ_TMP" ] ; then
+ACTIVEMQ_TMP="$ACTIVEMQ_BASE/tmp"
+fi
+setCurrentUser(){
+CUSER=`whoami 2>/dev/null`
+if [ ! $? -eq 0 ]; then
+CUSER=`/usr/ucb/whoami 2>/dev/null`
+fi
+}
+if [ ! -d "$ACTIVEMQ_DATA" ]; then
+setCurrentUser
+if ( [ -z "$ACTIVEMQ_USER" ] || [ "$ACTIVEMQ_USER" = "$CUSER" ] );then
+mkdir $ACTIVEMQ_DATA
+elif [ "`id -u`" = "0" ];then
+su -c "mkdir $ACTIVEMQ_DATA" - $ACTIVEMQ_USER;
+fi
+fi
+if [ -z "$ACTIVEMQ_PIDFILE" ]; then
+ACTIVEMQ_PIDFILE="$ACTIVEMQ_DATA/activemq-`hostname`.pid"
+fi
+JAVACMD="auto"
+ACTIVEMQ_OPTS_MEMORY="-Xms12G -Xmx12G -Xss512K -XX:+UseParallelGC -XX:+UseGCOverheadLimit -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$ACTIVEMQ_DATA"
+ACTIVEMQ_OPTS="$ACTIVEMQ_OPTS_MEMORY -XX:+PrintCommandLineFlags -Dorg.apache.activemq.UseDedicatedTaskRunner=false -Djava.util.logging.config.file=logging.properties -Djava.rmi.server.hostname=127.0.0.1 -Dhawtio.realm=activemq -Dhawtio.role=admins -Dhawtio.rolePrincipalClasses=org.apache.activemq.jaas.GroupPrincipal -Djava.security.auth.login.config=$ACTIVEMQ_CONF/login.config"
+ACTIVEMQ_SUNJMX_START="$ACTIVEMQ_SUNJMX_START -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=11099 -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.rmi.port=11099"
+ACTIVEMQ_SUNJMX_CONTROL=""
+if [ -z "$ACTIVEMQ_QUEUEMANAGERURL" ]; then
+ACTIVEMQ_QUEUEMANAGERURL="--amqurl tcp://localhost:61616"
+fi
+ACTIVEMQ_SSL_OPTS="$SSL_OPTS"
+if [ -z "$ACTIVEMQ_KILL_MAXSECONDS" ]; then
+ACTIVEMQ_KILL_MAXSECONDS=30
+fi
+
